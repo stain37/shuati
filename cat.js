@@ -599,8 +599,8 @@
         + '<div class="meta">' + b.questions.length + ' 题　已做 ' + done + '　正确率 ' + (done ? Math.round(ok / done * 100) : 0) + '%</div>'
         + '<div class="prog"><i style="width:' + (b.questions.length ? done / b.questions.length * 100 : 0) + '%"></i></div>'
         + '</div><div class="acts">'
-        + '<button class="btn primary" data-start="' + E(b.id) + '">' + (done ? '继续' : '开始') + (b.exam ? '考试' : '做题') + '</button>'
-        + '<button class="btn danger" data-delpaper="' + E(b.id) + '">删除' + (b.exam ? '试卷' : '套卷') + '</button>'
+        + '<button class="btn primary" data-act="start" data-id="' + E(b.id) + '">' + (done ? '继续' : '开始') + (b.exam ? '考试' : '做题') + '</button>'
+        + '<button class="btn danger" data-act="delpaper" data-id="' + E(b.id) + '">删除' + (b.exam ? '试卷' : '套卷') + '</button>'
         + '</div></div>';
     }).join('');
 
@@ -781,6 +781,19 @@
     host.querySelectorAll('[data-trow]').forEach(function (row) {
       row.onclick = function () { openDir(row.dataset.trow); };
     });
+    /* 兜底：万一还有别处（例如 app.js 自己那版首页）渲染出 data-start / data-delpaper 的按钮，
+       也补上事件 —— 这两个属性以前没人读，套卷卡片上的「开始做题 / 删除套卷」点不动就是这么来的 */
+    host.querySelectorAll('[data-delpaper]').forEach(function (el) {
+      if (el.onclick) return;
+      el.onclick = function (e) {
+        e.preventDefault(); e.stopPropagation();
+        if (typeof deletePaper === 'function') deletePaper(el.dataset.delpaper);
+      };
+    });
+    host.querySelectorAll('[data-start]').forEach(function (el) {
+      if (el.onclick) return;
+      el.onclick = function (e) { e.preventDefault(); e.stopPropagation(); startBankWrapped(el.dataset.start); };
+    });
     host.querySelectorAll('[data-act]').forEach(function (el) {
       el.onclick = function (e) {
         e.preventDefault(); e.stopPropagation();
@@ -856,6 +869,8 @@
       case 'newcat': askNewCat(); break;
       case 'newbank': if (typeof go === 'function') go('#/import'); break;
       case 'start': startBankWrapped(id); break;
+      /* 临时套卷 / 模拟试卷的删除（app.js 的 deletePaper，会清掉套卷作答并记墓碑） */
+      case 'delpaper': if (typeof deletePaper === 'function') deletePaper(id); break;
       case 'wrong': if (typeof QZ !== 'undefined') QZ.filter = 'wrong'; startBankWrapped(id); break;
       case 'rand': if (typeof randomPaper === 'function') randomPaper([bankOf(id)], 30); break;
       case 'move': askMoveBank(id); break;

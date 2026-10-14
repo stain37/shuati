@@ -263,6 +263,8 @@ const qType = (q, ans) => ((ans || q.answer || []).length > 1 ? 'X' : 'A');
 const typeLabel = (q, ans) => ((ans || q.answer || []).length > 1 ? '多选' : '单选');
 const key = (bankId, qid) => bankId + '#' + qid;
 const kOf = (bank, q) => key(bank.id, q.id);
+/* 临时套卷里的题目 id 是 p1/p2…（paperBanks 给的重编号），显示题号时去掉前缀 p，否则会写成「第 p1 题」 */
+const qNo = q => String(q.id == null ? '' : q.id).replace(/^p(\d+)$/, '$1');
 const favKey = (bank, q) => (bank.paper && q._srcKey) ? q._srcKey : key(bank.id, q.id);
 
 /* 作答记录 */
@@ -986,7 +988,7 @@ function renderQuiz(bankId) {
   $('view').innerHTML = `
     <div class="card">
       <div class="qhead">
-        <span class="qno">第 ${q.id} 题</span>
+        <span class="qno">第 ${qNo(q)} 题</span>
         <span class="tag">${typeLabel(q, ansOf(fk, q))}</span>
         ${q.groupTitle ? `<span class="tag g">${esc(q.groupTitle)}</span>` : ''}
         ${bank.paper ? `<span class="tag paper-tag">临时套卷</span>` : ''}
@@ -1410,7 +1412,7 @@ function doPreview() {
     <div class="sec-t">前 3 题预览</div>
     ${qs.slice(0, 3).map(q => `
       <div class="card" style="margin-bottom:10px">
-        <div class="qno small">第 ${q.id} 题 · ${q.answer.length > 1 ? '多选' : '单选'}</div>
+        <div class="qno small">第 ${qNo(q)} 题 · ${q.answer.length > 1 ? '多选' : '单选'}</div>
         ${q.group ? `<div class="gstem"><b>共用题干：</b>${esc(q.group)}</div>` : ''}
         <div style="margin:6px 0">${esc(q.stem)}</div>
         <div class="small">${q.options.map((o, i) => esc('ABCDEFGH'[i] + '. ' + o)).join('<br>')}</div>
