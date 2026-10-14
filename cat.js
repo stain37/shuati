@@ -24,6 +24,8 @@
   var CAT_KEY = 'qbank.cats.v1';
   var CUR_KEY = 'qbank.curcat.v1';       // 上次停留的目录，刷新后回到原处
   var CONFIRM_KEY = 'qbank.catconfirm.v1'; // 「移动题库会改哪些东西」是否已提示过
+  var SEED_KEY = 'qbank.seedcats.v1';    // 站点自带目录：只补一次，用户自己删掉的不再冒出来
+  var OVR_KEY = 'qbank.bankovr.v1';      // 内置题库被移动过的位置（内置题库在文件里，位置只能记这儿）
 
   var CAT = null;                        // [{ id, title, parent, order }]
   var CUR = null;                        // 当前目录 id（null = 根）
@@ -108,11 +110,104 @@
     });
   }
 
+  /* ---------- 站点自带的目录（banks/*.js 里的 window.__SEED_CATS__） ----------
+     站点自带的题库写死在文件里，目录也得跟着来。但目录不能每次都硬塞：
+     只在「浏览器里还没这个目录」并且「用户没删过它」时补一次，记在 SEED_KEY 里，
+     用户自己删掉的目录刷新后不会再冒出来。 */
+  function seedCats() {
+    var seeds = [];
+    try { seeds = window.__SEED_CATS__ || []; } catch (e) { seeds = []; }
+    if (!Array.isArray(seeds) || !seeds.length) return false;
+    var seen = null;
+    try { seen = JSON.parse(localStorage.getItem(SEED_KEY)); } catch (e) { seen = null; }
+    if (!seen || typeof seen !== 'object' || Array.isArray(seen)) seen = {};
+    var byId = {};
+    CAT.forEach(function (c) { byId[c.id] = c; });
+    var changed = false;
+    seeds.forEach(function (s) {
+      if (!s || !s.id) return;
+      var id = String(s.id);
+      if (!byId[id] && !seen[id]) {
+        var node = {
+          id: id,
+          title: String(s.title == null ? '未命名分类' : s.title),
+          parent: (s.parent == null || s.parent === '') ? null : String(s.parent),
+          order: (s.order == null ? 0 : +s.order || 0)
+        };
+        CAT.push(node); byId[id] = node; changed = true;
+      }
+      seen[id] = 1;
+    });
+    try { localStorage.setItem(SEED_KEY, JSON.stringify(seen)); } catch (e) {}
+    /* 关键：补进来的目录要马上落盘（qbank.cats.v1），
+       否则下次打开页面读到的还是空分类 —— 而 SEED_KEY 已经记成「补过了」，就再也不补了 */
+    if (changed) { try { saveCats({ quiet: true }); } catch (e) {} }
+    return changed;
+  }
+
+  /* ---------- 内置题库的位置 ----------
+     内置题库的原始对象在 window.__BANKS__ 里，每次打开页面都由 banks/*.js 重新注册，
+     所以移动它只改内存、刷新就回到文件里的位置。这里把移动结果记在浏览器里，开机套回去。 */
+  function ovrAll() {
+    try {
+      var v = JSON.parse(localStorage.getItem(OVR_KEY));
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    } catch (e) { return {}; }
+  }
+  function ovrSave(all) {
+    try { localStorage.setItem(OVR_KEY, JSON.stringify(all)); } catch (e) {}
+  }
+  function ovrSet(id, cat, ord) {
+    if (!id) return;
+    var all = ovrAll();
+    all[String(id)] = { cat: (cat == null ? null : String(cat)), ord: (ord == null ? null : +ord) };
+    ovrSave(all);
+  }
+  function isLocalBank(id) { return !!toLocal(id); }
+  /* 把记录套回内置题库；顺带修孤儿：目录被删了、题库还指着它 → 挪到根目录，否则会永远看不见 */
+  function applyBankOvr() {
+    var list = [];
+    try { list = window.__BANKS__ || []; } catch (e) { list = []; }
+    if (!Array.isArray(list) || !list.length) return 0;
+    var all = ovrAll(), n = 0, orphans = 0, live = {};
+    CAT.forEach(function (c) { live[c.id] = 1; });
+    list.forEach(function (raw) {
+      if (!raw || !raw.id) return;
+      var o = all[String(raw.id)];
+      if (o) {
+        raw.cat = (o.cat == null ? null : o.cat);
+        if (o.ord == null) delete raw.ord; else raw.ord = +o.ord;
+        n++;
+      }
+      if (raw.cat != null && !live[raw.cat]) {
+        /* 目录没了（比如被删掉、而删除那一步没赶上记录）：本次先摆到根目录，免得永远看不见。
+           注意不写进覆盖表 —— 目录要是又回来了（用户新建同名 id 的情况极少），题库还能回去。
+           真删掉目录时，askDelCat / askDelCatDeep 已经把正确的位置写进覆盖表了。 */
+        raw.cat = null;
+        orphans++; n++;
+      }
+    });
+    if (n && typeof invalidateBanks === 'function') invalidateBanks();
+    return n;
+  }
+  /* 题库位置变了：自建题库写回 localStorage，内置题库记一份覆盖表（刷新后还在新位置） */
+  function persistBankPos(id, cat, ord) {
+    var raw = toRaw(id);
+    if (raw) {
+      if (cat == null) delete raw.cat; else raw.cat = cat;
+      if (ord == null) delete raw.ord; else raw.ord = +ord;
+    }
+    if (!isLocalBank(id)) ovrSet(id, cat, ord);
+    return true;
+  }
+
   function ensure() {
     if (CAT) return CAT;
     CAT = readRaw();
+    seedCats();               // 站点自带的目录（banks/*.js）第一次打开时补进来
     normalize();
     compact();
+    applyBankOvr();           // 内置题库上次被移到哪儿，套回去
     return CAT;
   }
 
@@ -328,12 +423,8 @@
       var after = idx >= 0 ? sibs[idx] : null;
       b.ord = after ? ((idx > 0 ? (+sibs[idx - 1].ord || 0) : (after.ord || 0) - 1) + (after.ord || 0)) / 2 : (sibs.length ? (+sibs[sibs.length - 1].ord || 0) + 1 : 0);
     }
-    syncBankToLocal(id);          // 立刻写回原始题库对象，刷新后位置还在
-    var raw = toRaw(id);          // 内置题库不在 LOCAL 里，得改 __BANKS__ 里的那一份
-    if (raw) {
-      raw.cat = b.cat == null ? null : b.cat;
-      if (b.ord == null) delete raw.ord; else raw.ord = b.ord;
-    }
+    syncBankToLocal(id);          // 自建题库：立刻写回原始对象，刷新后位置还在
+    persistBankPos(id, b.cat == null ? null : b.cat, b.ord == null ? null : b.ord);   // 内置题库：位置记在浏览器里
     return true;
   }
 
@@ -900,8 +991,7 @@
       subs.forEach(function (k) { k.parent = parent; });
       bs.forEach(function (b) {
         b.cat = parent;
-        var raw = toRaw(b.id);
-        if (raw) raw.cat = parent;
+        persistBankPos(b.id, parent, b.ord == null ? null : b.ord);
         syncBankToLocal(b.id);
       });
       CAT = CAT.filter(function (x) { return x.id !== id; });
@@ -966,8 +1056,7 @@
       /* 内置题库不能删：挪到上一级免得成孤儿（必须改原始对象，副本改了不生效） */
       keep.forEach(function (b) {
         b.cat = c.parent || null;
-        var raw = toRaw(b.id);
-        if (raw) raw.cat = c.parent || null;
+        persistBankPos(b.id, c.parent || null, b.ord == null ? null : b.ord);
         syncBankToLocal(b.id);
       });
       CAT = CAT.filter(function (x) { return !set[x.id]; });                            // 整棵子树一起删
@@ -1397,6 +1486,9 @@
     delDeep: askDelCatDeep,     // 删除目录并连里面的题库一起删
     emptyDirs: emptyDirIds,     // 空目录 id 列表
     delEmpty: deleteDirs,       // 直接删掉这些空目录（返回删掉数）
-    cleanEmpty: askDelEmpty     // 带确认框的空目录清理
+    cleanEmpty: askDelEmpty,    // 带确认框的空目录清理
+    seedCats: seedCats,         // 站点自带目录（测试 / 自动化用）
+    ovr: ovrAll,                // 内置题库位置覆盖表
+    applyOvr: applyBankOvr
   };
 })();

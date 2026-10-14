@@ -34,7 +34,21 @@
 把原版「刷题站-在线版」里的这几个文件拷回来即可：ai.js（覆盖原来的）、AI配置.示例.js、
 从Chatbox导入.bat、chatbox-import.py、usage-chatbox.txt。
 
-五、改代码后的固定动作
+五、站点自带的题库（内置，2026-10-15 加的）
+1. banks/天天师兄课后巩固.js 里装了 39 个题库 / 506 题（内科学 8 / 外科学 6 / 生物化学 1 /
+   生理学 15 / 病理学 9），打开站点时会自动建好目录：
+   天天师兄课后巩固（分章题库） › 内科学 / 外科学 / 生物化学 / 生理学 / 病理学。
+   题目在这个 .js 文件里，不属于浏览器缓存 —— 换电脑、换手机、清缓存、换网址，打开就在，不用导入。
+2. 这些题库是「内置」的（卡片上有「内置」小标）：能刷、能移动、能排序，但不能改名 / 删除 /
+   编辑题目（内置题库以文件为准）。想改内容就说一声，换一种带法。
+3. 目录只补一次：第一次打开时创建，之后你自己删掉的目录不会再冒出来（记录在
+   localStorage 的 qbank.seedcats.v1）；内置题库被你移到的位置记在 qbank.bankovr.v1。
+4. 想换成自己的一套：把题库文件放进 banks/，在 index.html 里加一行
+   <script src="banks/你的题库.js?v=..."></script>，文件里用 window.registerBank({...}) 注册；
+   目录用 window.__SEED_CATS__ = [{id, title, parent, order}, ...] 声明（见 banks/天天师兄课后巩固.js 开头）。
+
+六、改代码后的固定动作
 改了任何 .js / .css，都要把 index.html 里的 ?v= 版本号抬一次、并把 sw.js 的 VERSION 加一，
 否则浏览器（Service Worker 缓存）可能还在跑旧文件。
-本副本的版本：index.html 用 ?v=20261014p，sw.js 用 shuati-v18-pure1。
+本副本的版本：大部分文件用 ?v=20261014p，cat.js 与 banks/天天师兄课后巩固.js 用 ?v=20261015a，
+sw.js 用 shuati-v19-pure2。
