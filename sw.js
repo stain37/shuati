@@ -7,7 +7,7 @@
        这样第一次加载不会白等，离线也能用资料；知识库.js 同时在安装时预缓存一份，
        所以装到手机主屏之后断网打开，资料库照样能搜。
    改了 app.js / style.css 等内容后，把 VERSION 加一即可让旧缓存失效。 */
-const VERSION = 'shuati-v19-pure2';   // 2026-10-15：加了自带题库 banks/天天师兄课后巩固.js，并抬了 cat.js 的资源版本号（?v=20261015a）
+const VERSION = 'shuati-v20-pure3';   // 2026-10-15：修了 route() 不解码 hash 导致题库 id 带中文时点「开始」进不去的 bug（app.js?v=20261015b）
 const CORE = [
   './',
   './index.html',

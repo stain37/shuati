@@ -475,7 +475,10 @@ const safeName = s => String(s).replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40);
 /* ---------- 路由 ---------- */
 function route() {
   const h = location.hash.replace(/^#\/?/, '');
-  const parts = h.split('/');
+  /* 地址栏的 hash 会被浏览器做百分号编码：题库 id 里若带中文（例如自带的 ttsx-内科学-1
+     会变成 ttsx-%E5%86%85%E7%A7%91%E5%AD%A6-1），不解码就查不到题库，
+     点「开始」会被 renderQuiz 当成无效题库弹回首页。 */
+  const parts = h.split('/').map(p => { try { return decodeURIComponent(p); } catch (e) { return p; } });
   if (parts[0] === 'bank' && parts[1]) return { name: 'quiz', bankId: parts[1] };
   if (parts[0] === 'import') return { name: 'import' };
   if (parts[0] === 'wrong') return { name: 'wrong' };
