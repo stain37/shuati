@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>刷题站 · 题库</title>
+<meta name="description" content="可自定义的刷题网站：选择题即时判分、答错出解析，错题本带统计与间隔重复复习，支持模考与搜索。">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="刷题站">
+<meta name="application-name" content="刷题站">
+<link rel="stylesheet" href="style.css?v=20261014p">
+<link rel="stylesheet" href="bfui.css?v=20261014p">
+<link rel="stylesheet" href="cat.css?v=20261014p">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  /* 题库注册入口：banks/*.js 通过这些函数把题库交给站点 */
+  window.__BANKS__ = [];
+  window.registerBank = function (b) { window.__BANKS__.push(b); };
+</script>
+</head>
+<body>
+
+<div class="top">
+  <div class="row">
+    <button class="btn" id="btnHome" style="display:none">⌂ 主页</button>
+    <span class="title" id="appTitle">刷题站</span>
+    <span class="stat" id="stat"></span>
+    <button class="btn tg" id="btnGoWrong" title="错题本">错题</button>
+    <button class="btn tg" id="btnGoFav" title="我的收藏">收藏</button>
+    <button class="btn tg" id="btnGoSearch" title="搜索题目（快捷键 /）">搜索</button>
+    <button class="btn tg" id="btnGoKb" title="AI 解析与知识库">AI</button>
+    <button class="btn" id="btnTheme" title="切换外观：跟随系统 / 浅色 / 深色">◐</button>
+    <button class="btn" id="btnSetAll" title="设置 / 深色模式 / 字号" style="display:none">⚙</button>
+    <button class="btn" id="btnGrid" style="display:none">题号</button>
+    <button class="btn" id="btnQuizSet" style="display:none">设置</button>
+  </div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="chips" id="chips" style="display:none"></div>
+</div>
+
+<div class="wrap" id="view"></div>
+
+<div class="nav" id="nav" style="display:none">
+  <button class="btn" id="prev" title="上一题（←）">‹ 上一题</button>
+  <button class="btn mid" id="jumpInfo" title="点开答题卡（K）">—</button>
+  <button class="btn primary" id="next" title="下一题（→ 或 Enter）">下一题 ›</button>
+</div>
+
+<div class="mask" id="gridMask"><div class="sheet">
+  <div class="shead"><h3>答题卡</h3><span class="spacer-grow"></span><button class="btn tiny" id="gridClose">关闭</button></div>
+  <div class="legend">
+    <span><i class="lg-done"></i>做对</span>
+    <span><i class="lg-err"></i>做错</span>
+    <span><i></i>没做</span>
+    <span><i class="lg-cur"></i>当前题</span>
+  </div>
+  <div class="gridf" id="gridFilter"></div>
+  <div id="gridBody"></div>
+</div></div>
+
+<div class="mask" id="setMask"><div class="sheet">
+  <h3>设置</h3>
+  <div class="hint">作答记录、错题、收藏、自定义解析、复习排期都保存在本机浏览器里，关掉页面不会丢。</div>
+  <label class="chk"><input type="checkbox" id="setExpOnOk"> 答对时也显示解析</label>
+  <label class="chk"><input type="checkbox" id="setAutoNext"> 答对后自动跳下一题</label>
+  <label class="chk"><input type="checkbox" id="setShuffle"> 随机顺序出题</label>
+  <div class="tools" style="margin-top:12px">
+    <span class="tl">外观</span>
+    <select class="num" id="setTheme">
+      <option value="auto">跟随系统</option>
+      <option value="light">浅色</option>
+      <option value="dark">深色</option>
+    </select>
+    <span class="tl">字号</span>
+    <select class="num" id="setFs">
+      <option value="s">小</option>
+      <option value="m">标准</option>
+      <option value="l">大</option>
+      <option value="xl">特大</option>
+    </select>
+  </div>
+  <div class="tools" style="margin-top:12px">
+    <span class="tl">复习曲线</span>
+    <select class="num" id="srsMode"></select>
+  </div>
+  <div class="small muted" id="srsDesc" style="margin-top:6px"></div>
+  <div class="srsbox">
+    <div class="srsgrid">
+      <label>首次答对（天）<input type="number" id="srsFirst" min="0" max="60" step="1"></label>
+      <label>第二次答对（天）<input type="number" id="srsSecond" min="0" max="120" step="1"></label>
+      <label>间隔增长
+        <select id="srsFactor">
+          <option value="ease">× 当时易度</option>
+          <option value="1.5">× 1.5</option>
+          <option value="2">× 2</option>
+          <option value="2.5">× 2.5</option>
+          <option value="3">× 3</option>
+        </select>
+      </label>
+      <label>初始易度<input type="number" id="srsEase0" min="1.3" max="3" step="0.05"></label>
+      <label>答对加易度<input type="number" id="srsEaseUp" min="0" max="0.5" step="0.05"></label>
+      <label>答错减易度<input type="number" id="srsEaseDown" min="0" max="0.5" step="0.05"></label>
+      <label>易度下限<input type="number" id="srsMinEase" min="1.1" max="3" step="0.05"></label>
+      <label>最长间隔（天）<input type="number" id="srsMaxIvl" min="1" max="3650" step="1"></label>
+      <label>答错后间隔（天）<input type="number" id="srsWrongIvl" min="0" max="30" step="1"></label>
+      <label>每日复习上限<input type="number" id="srsDaily" min="0" max="999" step="1"></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="srsWrongToday"> 答错的题当天继续排进复习（不勾就按上面的「答错后间隔」）</label>
+    <div class="srsline" id="srsPreview"></div>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn small" id="srsReset">填回推荐值</button>
+      <button class="btn small" id="srsSyncEase">统一易度</button>
+      <button class="btn small" id="fixAllRe">按修正答案重判</button>
+    </div>
+    <div class="small muted" style="margin-top:8px">改档位只影响<b>以后</b>的排期；想立刻重排历史记录，用上面「统一易度」「按修正答案重判」，或者答题时点「改答案」。</div>
+  </div>
+  <div class="small muted" style="margin-top:10px">快捷键：A–H 或 1–8 选选项，Enter 提交 / 下一题，← → 翻页，<b>S</b> 收藏本题，<b>K</b> 打开答题卡，<b>/</b> 搜索，<b>?</b> 打开帮助，Esc 关弹窗。顶栏的 <b>◐</b> 可以一键切换深浅色。</div>
+  <div class="actions" style="margin-top:16px">
+    <button class="btn" id="goKb2" title="配置 AI 与本地知识库">AI 解析 / 知识库</button>
+    <button class="btn" id="expAll2">导出全部数据（备份）</button>
+    <button class="btn danger" id="resetAll">清空作答记录</button>
+    <button class="btn" id="closeSet">关闭</button>
+  </div>
+  <div class="hint" style="margin-top:10px">「清空作答记录」只清空对错、次数和复习排期，<b>不会再动</b>收藏和自定义解析。</div>
+</div></div>
+
+<!-- 题库：一个 .js 文件一个题库，放进 banks/ 后再在下面加一行即可加载，例如
+     <script src="banks/你的题库.js"></script>
+     也可以完全不动文件，直接在网页上用「导入题库」加自己的题（存在浏览器里）。
+     这一份（在线版）已经把原作者的内置模考卷移除，banks/ 里是空的。 -->
+
+<script src="app.js?v=20261014p"></script>
+<script src="collection.js?v=20261014p"></script>
+<script src="exam.js?v=20261014p"></script>
+<script src="kb.js?v=20261014p"></script>
+<script src="ai.js?v=20261014p"></script>
+
+<!-- 目录式题库（cat.js）与本机题库文件（bf.js / bfui.js）
+     放在最后：它们只做「给已有首页加一层目录视图」和「把题库存成文件」，
+     用 window.CAT / window.BF 暴露接口，app.js 里只做了几行最小改动。 -->
+<script src="bfui.js?v=20261014p"></script>
+<script src="cat.js?v=20261014p"></script>
+<script src="bf.js?v=20261014p"></script>
+<link rel="stylesheet" href="bf-folder.css?v=20261014p">
+<script src="bf-folder.js?v=20261014p"></script>
+
+<script>
+  /* 等 app.js / collection.js / exam.js / kb.js / ai.js 全部加载完再渲染。
+     以前这行在 collection.js 末尾，那时 exam.js / kb.js 还没加载，
+     直接打开 #/exam/... 或 #/kb 会空白。 */
+  render();
+
+  /* PWA：只在 http(s) 下注册（双击本地打开时浏览器不支持 Service Worker） */
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
+

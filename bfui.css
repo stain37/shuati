@@ -1,0 +1,22 @@
+/* ============================================================
+   刷题站 · 自建弹窗 bfui.css（配合 bfui.js）
+   复用 style.css 的 .mask / .sheet / .btn / .field 等基础样式，
+   这里只补弹窗内部的结构样式。
+   ============================================================ */
+.bfMask{align-items:center;justify-content:center}
+.bfSheet{max-width:520px;border-radius:var(--r-l);max-height:88vh;animation:bfPop .18s ease}
+@keyframes bfPop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+.bfTitle{margin:0 0 10px;font-size:16px}
+.bfDesc{margin-bottom:8px}
+.bfMsg{color:var(--bad,#dc2626);font-size:12.5px;min-height:17px;margin-top:6px}
+.bfHint{margin:6px 0 0}
+.bfChips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.bfChip{font-size:12.5px;padding:5px 11px}
+.bfBody{font-size:13.5px;line-height:1.8;color:var(--text)}
+.bfList{max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r-m);background:var(--bg2);margin:6px 0 4px}
+.bfItem{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:11px 13px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:14px}
+.bfItem:last-child{border-bottom:0}
+.bfItem:hover{background:var(--primary-weak)}
+.bfItem.off{color:var(--sub);cursor:not-allowed}
+.bfItemT{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bfItemN{flex:0 0 auto;font-size:12px;color:var(--sub)}
